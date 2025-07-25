@@ -37,27 +37,18 @@ export const useDeckThemes = () => {
 
   const addTheme = async (theme: Omit<DeckTheme, 'id' | 'createdAt'>) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('deck_themes')
         .insert({
           name: theme.name,
           description: theme.description,
           mana_color: theme.manaColor,
-        })
-        .select()
-        .single();
+        });
 
       if (error) throw error;
 
-      const newTheme: DeckTheme = {
-        id: data.id,
-        name: data.name,
-        description: data.description || '',
-        manaColor: data.mana_color as ManaColor,
-        createdAt: new Date(data.created_at),
-      };
-
-      setThemes(prev => [...prev, newTheme]);
+      // Refetch themes instead of manually updating state to avoid duplicates
+      await fetchThemes();
     } catch (error) {
       console.error('Error adding theme:', error);
       throw error;
@@ -73,7 +64,8 @@ export const useDeckThemes = () => {
 
       if (error) throw error;
 
-      setThemes(prev => prev.filter(theme => theme.id !== id));
+      // Refetch themes to ensure consistency
+      await fetchThemes();
     } catch (error) {
       console.error('Error removing theme:', error);
       throw error;
@@ -82,30 +74,19 @@ export const useDeckThemes = () => {
 
   const updateTheme = async (id: string, updates: Partial<Omit<DeckTheme, 'id' | 'createdAt'>>) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('deck_themes')
         .update({
           name: updates.name,
           description: updates.description,
           mana_color: updates.manaColor,
         })
-        .eq('id', id)
-        .select()
-        .single();
+        .eq('id', id);
 
       if (error) throw error;
 
-      const updatedTheme: DeckTheme = {
-        id: data.id,
-        name: data.name,
-        description: data.description || '',
-        manaColor: data.mana_color as ManaColor,
-        createdAt: new Date(data.created_at),
-      };
-
-      setThemes(prev => prev.map(theme => 
-        theme.id === id ? updatedTheme : theme
-      ));
+      // Refetch themes to ensure consistency
+      await fetchThemes();
     } catch (error) {
       console.error('Error updating theme:', error);
       throw error;
