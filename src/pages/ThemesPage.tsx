@@ -13,7 +13,7 @@ import { Plus, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ThemesPage = () => {
-  const { themes, addTheme, removeTheme, updateTheme } = useDeckThemes();
+  const { themes, loading, addTheme, removeTheme, updateTheme } = useDeckThemes();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTheme, setEditingTheme] = useState<DeckTheme | null>(null);
   const [filterColor, setFilterColor] = useState<ManaColor | 'all'>('all');
@@ -60,7 +60,7 @@ const ThemesPage = () => {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name.trim()) {
@@ -68,20 +68,28 @@ const ThemesPage = () => {
       return;
     }
 
-    if (editingTheme) {
-      updateTheme(editingTheme.id, formData);
-      toast.success('Tema atualizado com sucesso!');
-    } else {
-      addTheme(formData);
-      toast.success('Tema adicionado com sucesso!');
+    try {
+      if (editingTheme) {
+        await updateTheme(editingTheme.id, formData);
+        toast.success('Tema atualizado com sucesso!');
+      } else {
+        await addTheme(formData);
+        toast.success('Tema adicionado com sucesso!');
+      }
+      
+      closeDialog();
+    } catch (error) {
+      toast.error('Erro ao salvar tema. Tente novamente.');
     }
-    
-    closeDialog();
   };
 
-  const handleDelete = (id: string) => {
-    removeTheme(id);
-    toast.success('Tema removido com sucesso!');
+  const handleDelete = async (id: string) => {
+    try {
+      await removeTheme(id);
+      toast.success('Tema removido com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao remover tema. Tente novamente.');
+    }
   };
 
   const filteredThemes = themes.filter(theme => 
@@ -239,7 +247,15 @@ const ThemesPage = () => {
         </div>
 
         {/* Lista de temas */}
-        {filteredThemes.length === 0 ? (
+        {loading ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Carregando temas...</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : filteredThemes.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
               <div className="text-center py-8">
