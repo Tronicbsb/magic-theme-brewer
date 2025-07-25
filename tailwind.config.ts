@@ -52,6 +52,13 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				mana: {
+					white: 'hsl(var(--white-mana))',
+					blue: 'hsl(var(--blue-mana))',
+					black: 'hsl(var(--black-mana))',
+					red: 'hsl(var(--red-mana))',
+					green: 'hsl(var(--green-mana))'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
