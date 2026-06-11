@@ -11,8 +11,8 @@ export const Navigation = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#16181f]/90 backdrop-blur-md border-t border-[#282d3d] safe-bottom">
-      <div className="max-w-md mx-auto px-6 h-16 flex items-center justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 md:bottom-6 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[420px] z-50 bg-[#16181f]/90 backdrop-blur-md border-t md:border border-[#282d3d] md:rounded-2xl shadow-2xl safe-bottom transition-all duration-300">
+      <div className="px-6 h-16 flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;

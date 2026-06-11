@@ -62,7 +62,7 @@ const DrawPage = () => {
 
   return (
     <div className="min-h-screen bg-[#0d0e12] text-foreground p-6 pb-24">
-      <div className="max-w-md mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Cabeçalho */}
         <div className="text-center py-4">
@@ -77,7 +77,7 @@ const DrawPage = () => {
         {!drawResult ? (
           <div className="space-y-6">
             {/* Card de Início */}
-            <Card className="bg-[#16181f]/80 border-[#282d3d] backdrop-blur-md shadow-xl text-center p-6">
+            <Card className="max-w-md mx-auto bg-[#16181f]/80 border-[#282d3d] backdrop-blur-md shadow-xl text-center p-6">
               <CardHeader className="pb-4">
                 <div className="mx-auto p-4 bg-primary/10 border border-primary/20 rounded-full w-16 h-16 flex items-center justify-center mb-2 shadow-[0_0_15px_rgba(168,85,247,0.1)]">
                   <Shuffle className="h-6 w-6 text-primary" />
@@ -116,39 +116,41 @@ const DrawPage = () => {
         ) : (
           <div className="space-y-6">
             
-            {/* Resultados Jogador 1 */}
-            <Card className="bg-[#16181f]/80 border-[#282d3d] backdrop-blur-md shadow-xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-purple-950/20 to-indigo-950/20 border-b border-[#282d3d]/50 py-3">
-                <CardTitle className="text-md font-bold text-purple-400 flex items-center justify-between">
-                  <span>{drawResult.player1.name}</span>
-                  <span className="text-xs bg-purple-500/10 text-purple-400 px-2.5 py-0.5 rounded-full border border-purple-500/20 font-semibold">
-                    Jogador 1
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {drawResult.player1.themes.map((theme) => (
-                  <ThemeCard key={theme.id} theme={theme} />
-                ))}
-              </CardContent>
-            </Card>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Resultados Jogador 1 */}
+              <Card className="bg-[#16181f]/80 border-[#282d3d] backdrop-blur-md shadow-xl overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-purple-950/20 to-indigo-950/20 border-b border-[#282d3d]/50 py-3">
+                  <CardTitle className="text-md font-bold text-purple-400 flex items-center justify-between">
+                    <span>{drawResult.player1.name}</span>
+                    <span className="text-xs bg-purple-500/10 text-purple-400 px-2.5 py-0.5 rounded-full border border-purple-500/20 font-semibold">
+                      Jogador 1
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {drawResult.player1.themes.map((theme) => (
+                    <ThemeCard key={theme.id} theme={theme} />
+                  ))}
+                </CardContent>
+              </Card>
 
-            {/* Resultados Jogador 2 */}
-            <Card className="bg-[#16181f]/80 border-[#282d3d] backdrop-blur-md shadow-xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-blue-950/20 to-indigo-950/20 border-b border-[#282d3d]/50 py-3">
-                <CardTitle className="text-md font-bold text-blue-400 flex items-center justify-between">
-                  <span>{drawResult.player2.name}</span>
-                  <span className="text-xs bg-blue-500/10 text-blue-400 px-2.5 py-0.5 rounded-full border border-blue-500/20 font-semibold">
-                    Jogador 2
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {drawResult.player2.themes.map((theme) => (
-                  <ThemeCard key={theme.id} theme={theme} />
-                ))}
-              </CardContent>
-            </Card>
+              {/* Resultados Jogador 2 */}
+              <Card className="bg-[#16181f]/80 border-[#282d3d] backdrop-blur-md shadow-xl overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-950/20 to-indigo-950/20 border-b border-[#282d3d]/50 py-3">
+                  <CardTitle className="text-md font-bold text-blue-400 flex items-center justify-between">
+                    <span>{drawResult.player2.name}</span>
+                    <span className="text-xs bg-blue-500/10 text-blue-400 px-2.5 py-0.5 rounded-full border border-blue-500/20 font-semibold">
+                      Jogador 2
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {drawResult.player2.themes.map((theme) => (
+                    <ThemeCard key={theme.id} theme={theme} />
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Ação Novo Sorteio */}
             <div className="pt-2 flex flex-col items-center gap-3">

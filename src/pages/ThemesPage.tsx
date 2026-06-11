@@ -94,19 +94,27 @@ const ThemesPage = () => {
   const filteredThemes = themes.filter(theme => 
     filterColor === 'all' || theme.manaColor === filterColor
   );
-
   return (
     <div className="min-h-screen bg-[#0d0e12] text-foreground p-6 pb-24 relative">
-      <div className="max-w-md mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         
         {/* Cabeçalho */}
-        <div className="text-center py-4">
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-            Seus Temas
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Cadastre os temas dos semi decks que você possui fisicamente
-          </p>
+        <div className="flex justify-between items-center py-4">
+          <div className="text-left">
+            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
+              Seus Temas
+            </h1>
+            <p className="text-slate-400 text-sm mt-1 hidden sm:block">
+              Cadastre os temas dos semi decks que você possui fisicamente
+            </p>
+          </div>
+          <Button 
+            onClick={() => openDialog()} 
+            className="hidden sm:flex items-center gap-2 h-10 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold rounded-xl"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Tema
+          </Button>
         </div>
 
         {/* Filtros em Linha Horizontal (Estilo Mobile App Store) */}
@@ -161,7 +169,7 @@ const ThemesPage = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
             {filteredThemes.map((theme) => (
               <ThemeCard
                 key={theme.id}

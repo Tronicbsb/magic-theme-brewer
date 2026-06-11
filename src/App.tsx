@@ -31,7 +31,7 @@ const AppContent = () => {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-[#0d0e12] relative">
-        <div className="pb-20">
+        <div className="pb-28">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/themes" element={<ThemesPage />} />
