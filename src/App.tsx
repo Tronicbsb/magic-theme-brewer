@@ -7,6 +7,7 @@ import { Navigation } from "@/components/Navigation";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import ThemesPage from "./pages/ThemesPage";
+import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -29,12 +30,17 @@ const AppContent = () => {
 
   return (
     <BrowserRouter>
-      <Navigation />
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/themes" element={<ThemesPage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <div className="min-h-screen bg-[#0d0e12] relative">
+        <div className="pb-20">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/themes" element={<ThemesPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+        <Navigation />
+      </div>
     </BrowserRouter>
   );
 };

@@ -43,10 +43,10 @@ export default function LoginPage() {
             </div>
           </div>
           <CardTitle className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-            Magic Theme Brewer
+            Magic JumpStart Dex
           </CardTitle>
           <CardDescription className="text-slate-400 text-sm max-w-[320px] mx-auto">
-            Crie, customize e sorteie seus decks temáticos de forma prática e segura.
+            Crie, customize e sorteie seus decks temáticos do MTG JumpStart de forma prática e segura.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

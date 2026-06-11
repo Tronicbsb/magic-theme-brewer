@@ -1,67 +1,41 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
-import { Wand2, Shuffle, Plus, LogOut } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Shuffle, Layers, Settings } from 'lucide-react';
 
 export const Navigation = () => {
   const location = useLocation();
-  const { user, logout } = useAuth();
+
+  const navItems = [
+    { path: '/', label: 'Sorteio', icon: Shuffle },
+    { path: '/themes', label: 'Temas', icon: Layers },
+    { path: '/settings', label: 'Ajustes', icon: Settings },
+  ];
 
   return (
-    <nav className="bg-card border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Wand2 className="h-8 w-8 text-primary mr-3" />
-            <span className="text-xl font-bold text-foreground">Magic Deck Sorteio</span>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <Link to="/">
-              <Button 
-                variant={location.pathname === '/' ? 'default' : 'ghost'}
-                className="flex items-center gap-2"
-              >
-                <Shuffle className="h-4 w-4" />
-                Sorteio
-              </Button>
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#16181f]/90 backdrop-blur-md border-t border-[#282d3d] safe-bottom">
+      <div className="max-w-md mx-auto px-6 h-16 flex items-center justify-around">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-all duration-300 relative ${
+                isActive 
+                  ? 'text-primary' 
+                  : 'text-slate-500 hover:text-slate-400'
+              }`}
+            >
+              <Icon className={`h-5 w-5 transition-transform duration-300 ${isActive ? 'scale-110 text-primary drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]' : ''}`} />
+              <span className="text-[10px] font-bold tracking-wider uppercase">
+                {item.label}
+              </span>
+              {isActive && (
+                <span className="absolute top-0 w-8 h-[2px] bg-primary rounded-full shadow-[0_0_10px_rgba(168,85,247,0.8)] animate-pulse" />
+              )}
             </Link>
-            
-            <Link to="/themes">
-              <Button 
-                variant={location.pathname === '/themes' ? 'default' : 'ghost'}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Temas
-              </Button>
-            </Link>
-
-            {user && (
-              <div className="flex items-center gap-3 pl-2 border-l border-border ml-2">
-                <Avatar className="h-8 w-8 border border-border">
-                  <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'Avatar'} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                    {user.displayName?.substring(0, 2).toUpperCase() || 'US'}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden md:inline-block text-sm text-muted-foreground max-w-[120px] truncate">
-                  {user.displayName}
-                </span>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={logout} 
-                  title="Sair"
-                  className="text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
+          );
+        })}
       </div>
     </nav>
   );

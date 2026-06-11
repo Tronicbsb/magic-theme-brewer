@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeCard } from '@/components/ThemeCard';
 import { ManaIcon } from '@/components/ManaIcon';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, Sparkles, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ThemesPage = () => {
@@ -71,24 +71,23 @@ const ThemesPage = () => {
     try {
       if (editingTheme) {
         await updateTheme(editingTheme.id, formData);
-        toast.success('Tema atualizado com sucesso!');
+        toast.success('Tema atualizado!');
       } else {
         await addTheme(formData);
-        toast.success('Tema adicionado com sucesso!');
+        toast.success('Tema criado com sucesso!');
       }
-      
       closeDialog();
     } catch (error) {
-      toast.error('Erro ao salvar tema. Tente novamente.');
+      toast.error('Erro ao salvar tema.');
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await removeTheme(id);
-      toast.success('Tema removido com sucesso!');
+      toast.success('Tema removido!');
     } catch (error) {
-      toast.error('Erro ao remover tema. Tente novamente.');
+      toast.error('Erro ao remover tema.');
     }
   };
 
@@ -96,180 +95,73 @@ const ThemesPage = () => {
     filterColor === 'all' || theme.manaColor === filterColor
   );
 
-  const themesByColor = manaColors.reduce((acc, color) => {
-    acc[color.value] = themes.filter(theme => theme.manaColor === color.value);
-    return acc;
-  }, {} as Record<ManaColor, DeckTheme[]>);
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Gerenciar Temas
-            </h1>
-            <p className="text-muted-foreground">
-              Cadastre e gerencie os temas dos seus semi decks
-            </p>
-          </div>
-
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => openDialog()} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Novo Tema
-              </Button>
-            </DialogTrigger>
-            
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {editingTheme ? 'Editar Tema' : 'Novo Tema'}
-                </DialogTitle>
-              </DialogHeader>
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground">Nome</label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Goblins"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-foreground">Descrição</label>
-                  <Textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Descreva o tema do deck..."
-                    rows={3}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-foreground">Cor da Mana</label>
-                  <Select
-                    value={formData.manaColor}
-                    onValueChange={(value: ManaColor) => 
-                      setFormData({ ...formData, manaColor: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {manaColors.map((color) => (
-                        <SelectItem key={color.value} value={color.value}>
-                          <div className="flex items-center gap-2">
-                            <ManaIcon color={color.value} size="sm" />
-                            {color.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={closeDialog}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    {editingTheme ? 'Atualizar' : 'Criar'} Tema
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+    <div className="min-h-screen bg-[#0d0e12] text-foreground p-6 pb-24 relative">
+      <div className="max-w-md mx-auto space-y-6">
+        
+        {/* Cabeçalho */}
+        <div className="text-center py-4">
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
+            Seus Temas
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">
+            Cadastre os temas dos semi decks que você possui fisicamente
+          </p>
         </div>
 
-        {/* Filtros */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filtrar por cor:</span>
-              <div className="flex gap-2">
+        {/* Filtros em Linha Horizontal (Estilo Mobile App Store) */}
+        <div className="overflow-x-auto scrollbar-none py-1 -mx-6 px-6">
+          <div className="flex gap-2 w-max">
+            <Button
+              variant={filterColor === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterColor('all')}
+              className="h-9 rounded-full px-4 border-[#282d3d]"
+            >
+              Todos ({themes.length})
+            </Button>
+            {manaColors.map((color) => {
+              const count = themes.filter(t => t.manaColor === color.value).length;
+              return (
                 <Button
-                  variant={filterColor === 'all' ? 'default' : 'outline'}
+                  key={color.value}
+                  variant={filterColor === color.value ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setFilterColor('all')}
+                  onClick={() => setFilterColor(color.value)}
+                  className="h-9 rounded-full px-4 border-[#282d3d] flex items-center gap-1.5"
                 >
-                  Todas
+                  <ManaIcon color={color.value} size="sm" />
+                  <span className="capitalize">{color.label}</span>
+                  <span className="text-[10px] opacity-65 font-bold">({count})</span>
                 </Button>
-                {manaColors.map((color) => (
-                  <Button
-                    key={color.value}
-                    variant={filterColor === color.value ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterColor(color.value)}
-                    className="flex items-center gap-1"
-                  >
-                    <ManaIcon color={color.value} size="sm" />
-                    {color.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Estatísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">{themes.length}</div>
-                <div className="text-sm text-muted-foreground">Total</div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {manaColors.map((color) => (
-            <Card key={color.value}>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="flex justify-center mb-1">
-                    <ManaIcon color={color.value} size="sm" />
-                  </div>
-                  <div className="text-2xl font-bold text-foreground">
-                    {themesByColor[color.value].length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">{color.label}</div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              );
+            })}
+          </div>
         </div>
 
-        {/* Lista de temas */}
+        {/* Lista de Temas */}
         {loading ? (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Carregando temas...</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="text-center py-12">
+            <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-slate-500 text-xs mt-3">Buscando temas no Firestore...</p>
+          </div>
         ) : filteredThemes.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  {filterColor === 'all' 
-                    ? 'Nenhum tema cadastrado ainda.' 
-                    : `Nenhum tema encontrado para a cor ${manaColors.find(c => c.value === filterColor)?.label}.`
-                  }
-                </p>
+          <Card className="bg-[#16181f]/80 border-[#282d3d] backdrop-blur-md shadow-xl py-12 text-center">
+            <CardContent>
+              <div className="mx-auto w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center mb-3">
+                <Filter className="h-5 w-5 text-slate-500" />
               </div>
+              <p className="text-slate-400 text-sm font-semibold">Nenhum tema encontrado</p>
+              <p className="text-slate-500 text-xs mt-1">
+                {filterColor === 'all' 
+                  ? 'Você ainda não possui temas cadastrados nesta conta.' 
+                  : 'Nenhum tema cadastrado para esta cor de mana.'
+                }
+              </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-4">
             {filteredThemes.map((theme) => (
               <ThemeCard
                 key={theme.id}
@@ -281,6 +173,93 @@ const ThemesPage = () => {
             ))}
           </div>
         )}
+
+        {/* Dialog / Modal (Ajustado para Mobile) */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="bg-[#16181f] border-[#282d3d] text-foreground max-w-sm rounded-2xl p-6">
+            <DialogHeader className="pb-2">
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                {editingTheme ? 'Editar Tema' : 'Novo Tema'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nome do Tema</label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Goblins"
+                  className="bg-[#0d0e12] border-[#282d3d] focus-visible:ring-primary rounded-xl h-11"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Descrição (Sinergias)</label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Ex: Agressão com muitas criaturas de custo baixo..."
+                  className="bg-[#0d0e12] border-[#282d3d] focus-visible:ring-primary rounded-xl"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Alinhamento de Mana</label>
+                <Select
+                  value={formData.manaColor}
+                  onValueChange={(value: ManaColor) => 
+                    setFormData({ ...formData, manaColor: value })
+                  }
+                >
+                  <SelectTrigger className="bg-[#0d0e12] border-[#282d3d] focus:ring-primary rounded-xl h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#16181f] border-[#282d3d] text-foreground">
+                    {manaColors.map((color) => (
+                      <SelectItem key={color.value} value={color.value} className="focus:bg-primary/10 focus:text-primary">
+                        <div className="flex items-center gap-2">
+                          <ManaIcon color={color.value} size="sm" />
+                          {color.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={closeDialog}
+                  className="flex-1 h-11 border-[#282d3d] hover:bg-[#0d0e12] rounded-xl font-semibold text-slate-400"
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit"
+                  className="flex-1 h-11 bg-primary text-primary-foreground font-semibold rounded-xl"
+                >
+                  {editingTheme ? 'Atualizar' : 'Salvar'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Floating Action Button (FAB) - Estilo App Nativo Celular */}
+        <button
+          onClick={() => openDialog()}
+          className="fixed bottom-20 right-5 z-40 bg-primary text-primary-foreground h-14 w-14 rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(147,51,234,0.45)] hover:scale-105 active:scale-95 transition-all duration-200"
+          title="Novo Tema"
+        >
+          <Plus className="h-6 w-6 stroke-[2.5]" />
+        </button>
+
       </div>
     </div>
   );
