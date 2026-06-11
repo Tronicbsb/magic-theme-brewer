@@ -41,10 +41,8 @@ export const ThemeCard = ({
           <div 
             className="w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden flex-shrink-0 bg-[#0d0e12] border border-[#282d3d] flex items-center justify-center cursor-zoom-in relative group transition-all"
             onClick={(e) => {
-              if (theme.imageUrl) {
-                e.stopPropagation();
-                setIsZoomOpen(true);
-              }
+              e.stopPropagation();
+              setIsZoomOpen(true);
             }}
           >
             {theme.imageUrl ? (
@@ -60,7 +58,14 @@ export const ThemeCard = ({
                 </div>
               </>
             ) : (
-              <ManaSymbolLarge color={theme.manaColor} />
+              <>
+                <div className="w-full h-full transition-transform group-hover:scale-105">
+                  <ManaSymbolLarge color={theme.manaColor} />
+                </div>
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-[10px] text-white font-bold bg-black/60 px-2 py-1 rounded-full uppercase tracking-wider">Ampliar</span>
+                </div>
+              </>
             )}
           </div>
 
@@ -130,17 +135,23 @@ export const ThemeCard = ({
       </Card>
 
       {/* Modal Zoom da Carta (Preserva proporção 5:7) */}
-      {theme.imageUrl && (
-        <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
-          <DialogContent className="bg-black/90 border-[#282d3d] p-0 max-w-[90vw] md:max-w-[450px] aspect-[5/7] overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center">
+      <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
+        <DialogContent className="bg-black/95 border-[#282d3d] p-0 max-w-[90vw] md:max-w-[450px] aspect-[5/7] overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center">
+          {theme.imageUrl ? (
             <img 
               src={theme.imageUrl} 
               className="w-full h-full object-contain" 
               alt={theme.name} 
             />
-          </DialogContent>
-        </Dialog>
-      )}
+          ) : (
+            <div className="w-full h-full p-8 bg-[#0d0e12] flex items-center justify-center">
+              <div className="w-48 h-64 sm:w-64 sm:h-88">
+                <ManaSymbolLarge color={theme.manaColor} />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
