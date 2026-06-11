@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useDeckThemes } from '@/hooks/useDeckThemes';
+import { useAuth } from '@/hooks/useAuth';
 import { DeckTheme, ManaColor } from '@/types/deck';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +10,77 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeCard } from '@/components/ThemeCard';
 import { ManaIcon } from '@/components/ManaIcon';
-import { Plus, Filter, Sparkles, BarChart2 } from 'lucide-react';
+import { Plus, Filter, Sparkles, BarChart2, Camera } from 'lucide-react';
 import { toast } from 'sonner';
+import { scanThemeCard } from '@/integrations/firebase/gemini';
+import { checkAndIncrementUsage, decrementUsage } from '@/integrations/firebase/limits';
 
 const ThemesPage = () => {
   const { themes, loading, addTheme, removeTheme, updateTheme } = useDeckThemes();
+  const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTheme, setEditingTheme] = useState<DeckTheme | null>(null);
   const [filterColor, setFilterColor] = useState<ManaColor | 'all'>('all');
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleScanButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!user) {
+      toast.error('Você precisa estar autenticado para escanear.');
+      return;
+    }
+
+    setIsScanning(true);
+    const scanToastId = toast.loading('Verificando limites diários...');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Url = event.target?.result as string;
+      try {
+        // 1. Verificar e Incrementar o limite diário no Firestore
+        await checkAndIncrementUsage(user.uid);
+        
+        // 2. Chamar a API do Gemini
+        toast.loading('Analisando imagem com inteligência artificial...', { id: scanToastId });
+        const result = await scanThemeCard(base64Url);
+        
+        setFormData((prev) => ({
+          ...prev,
+          name: result.themeName,
+          manaColor: result.manaColor,
+        }));
+        toast.success(`Carta identificada: ${result.themeName}!`, { id: scanToastId });
+      } catch (err: any) {
+        const errorMessage = err.message || '';
+        const isLimitError = errorMessage.includes('limite') || errorMessage.includes('limitação');
+        
+        // Estornar a cota caso o erro tenha sido na chamada da IA (evita penalizar falhas de conexão/foto)
+        if (!isLimitError) {
+          await decrementUsage(user.uid);
+        }
+        
+        toast.error(errorMessage || 'Erro ao escanear a carta.', { id: scanToastId });
+      } finally {
+        setIsScanning(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.onerror = () => {
+      toast.error('Erro ao ler o arquivo de imagem.', { id: scanToastId });
+      setIsScanning(false);
+    };
+    reader.readAsDataURL(file);
+  };
   
   const [formData, setFormData] = useState({
     name: '',
@@ -193,6 +257,36 @@ const ThemesPage = () => {
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Input de câmera oculto para dispositivos móveis */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+              />
+
+              <Button
+                type="button"
+                onClick={handleScanButtonClick}
+                disabled={isScanning}
+                variant="outline"
+                className="w-full h-11 border-dashed border-primary/45 hover:border-primary bg-primary/5 hover:bg-primary/10 rounded-xl flex items-center justify-center gap-2 text-primary text-sm font-bold transition-all"
+              >
+                {isScanning ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    Analisando carta...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-4.5 w-4.5" />
+                    Escanear Tema por Foto
+                  </>
+                )}
+              </Button>
+
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nome do Tema</label>
                 <Input
