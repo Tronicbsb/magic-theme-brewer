@@ -5,6 +5,7 @@ export interface DeckTheme {
   name: string;
   description: string;
   manaColor: ManaColor;
+  imageUrl?: string;
   createdAt: Date;
 }
 

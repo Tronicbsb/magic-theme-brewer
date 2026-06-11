@@ -10,10 +10,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeCard } from '@/components/ThemeCard';
 import { ManaIcon } from '@/components/ManaIcon';
-import { Plus, Filter, Sparkles, BarChart2, Camera } from 'lucide-react';
+import { Plus, Filter, Sparkles, BarChart2, Camera, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { scanThemeCard } from '@/integrations/firebase/gemini';
 import { checkAndIncrementUsage, decrementUsage } from '@/integrations/firebase/limits';
+import { compressImage } from '@/lib/image';
 
 const ThemesPage = () => {
   const { themes, loading, addTheme, removeTheme, updateTheme } = useDeckThemes();
@@ -23,10 +24,35 @@ const ThemesPage = () => {
   const [filterColor, setFilterColor] = useState<ManaColor | 'all'>('all');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>('');
 
   const handleScanButtonClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleCoverSelectButtonClick = () => {
+    coverInputRef.current?.click();
+  };
+
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const toastId = toast.loading('Processando e comprimindo imagem...');
+    try {
+      const compressedBlob = await compressImage(file);
+      const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
+      setSelectedImageFile(compressedFile);
+      setImagePreviewUrl(URL.createObjectURL(compressedBlob));
+      toast.success('Imagem de capa selecionada!', { id: toastId });
+    } catch (err) {
+      toast.error('Erro ao processar imagem.', { id: toastId });
+    } finally {
+      if (coverInputRef.current) coverInputRef.current.value = '';
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,52 +60,60 @@ const ThemesPage = () => {
     if (!file) return;
 
     if (!user) {
-      toast.error('Você precisa estar autenticado para escanear.');
+      toast.error('Você precisa estar autenticado para usar o leitor.');
       return;
     }
 
     setIsScanning(true);
     const scanToastId = toast.loading('Verificando limites diários...');
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64Url = event.target?.result as string;
-      try {
-        // 1. Verificar e Incrementar o limite diário no Firestore
-        await checkAndIncrementUsage(user.uid);
-        
-        // 2. Chamar a API do Gemini
-        toast.loading('Analisando imagem com inteligência artificial...', { id: scanToastId });
-        const result = await scanThemeCard(base64Url);
-        
-        setFormData((prev) => ({
-          ...prev,
-          name: result.themeName,
-          manaColor: result.manaColor,
-        }));
-        toast.success(`Carta identificada: ${result.themeName}!`, { id: scanToastId });
-      } catch (err: any) {
-        const errorMessage = err.message || '';
-        const isLimitError = errorMessage.includes('limite') || errorMessage.includes('limitação');
-        
-        // Estornar a cota caso o erro tenha sido na chamada da IA (evita penalizar falhas de conexão/foto)
-        if (!isLimitError) {
+    checkAndIncrementUsage(user.uid)
+      .then(async () => {
+        toast.loading('Comprimindo imagem localmente...', { id: scanToastId });
+        try {
+          const compressedBlob = await compressImage(file);
+          const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
+
+          setSelectedImageFile(compressedFile);
+          setImagePreviewUrl(URL.createObjectURL(compressedBlob));
+
+          const base64Reader = new FileReader();
+          base64Reader.onloadend = async () => {
+            const base64Url = base64Reader.result as string;
+            try {
+              toast.loading('Analisando cartão de tema com Gemini AI...', { id: scanToastId });
+              const result = await scanThemeCard(base64Url);
+
+              setFormData((prev) => ({
+                ...prev,
+                name: result.themeName,
+                manaColor: result.manaColor,
+              }));
+              toast.success(`Tema escaneado com sucesso: ${result.themeName}!`, { id: scanToastId });
+            } catch (err: any) {
+              const errorMessage = err.message || '';
+              const isLimitError = errorMessage.includes('limite') || errorMessage.includes('limitação');
+              if (!isLimitError) {
+                await decrementUsage(user.uid);
+              }
+              toast.error(errorMessage || 'Erro ao analisar imagem.', { id: scanToastId });
+            } finally {
+              setIsScanning(false);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+          };
+          base64Reader.readAsDataURL(compressedBlob);
+        } catch (err) {
           await decrementUsage(user.uid);
+          toast.error('Erro ao comprimir imagem da câmera.', { id: scanToastId });
+          setIsScanning(false);
         }
-        
-        toast.error(errorMessage || 'Erro ao escanear a carta.', { id: scanToastId });
-      } finally {
+      })
+      .catch((err) => {
+        toast.error(err.message || 'Limite diário atingido.', { id: scanToastId });
         setIsScanning(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-    };
-    reader.onerror = () => {
-      toast.error('Erro ao ler o arquivo de imagem.', { id: scanToastId });
-      setIsScanning(false);
-    };
-    reader.readAsDataURL(file);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      });
   };
   
   const [formData, setFormData] = useState({
@@ -103,6 +137,8 @@ const ThemesPage = () => {
       manaColor: 'white',
     });
     setEditingTheme(null);
+    setSelectedImageFile(null);
+    setImagePreviewUrl('');
   };
 
   const openDialog = (theme?: DeckTheme) => {
@@ -113,6 +149,8 @@ const ThemesPage = () => {
         description: theme.description,
         manaColor: theme.manaColor,
       });
+      setImagePreviewUrl(theme.imageUrl || '');
+      setSelectedImageFile(null);
     } else {
       resetForm();
     }
@@ -132,17 +170,20 @@ const ThemesPage = () => {
       return;
     }
 
+    const toastId = toast.loading('Salvando tema...');
     try {
       if (editingTheme) {
-        await updateTheme(editingTheme.id, formData);
-        toast.success('Tema atualizado!');
+        // Se a preview está vazia, o usuário removeu a foto
+        const newImageBlob = selectedImageFile || (imagePreviewUrl === '' && editingTheme.imageUrl ? null : undefined);
+        await updateTheme(editingTheme.id, formData, newImageBlob);
+        toast.success('Tema atualizado com sucesso!', { id: toastId });
       } else {
-        await addTheme(formData);
-        toast.success('Tema criado com sucesso!');
+        await addTheme(formData, selectedImageFile || undefined);
+        toast.success('Tema cadastrado com sucesso!', { id: toastId });
       }
       closeDialog();
     } catch (error) {
-      toast.error('Erro ao salvar tema.');
+      toast.error('Erro ao salvar tema no banco de dados.', { id: toastId });
     }
   };
 
@@ -258,6 +299,7 @@ const ThemesPage = () => {
             
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Input de câmera oculto para dispositivos móveis */}
+              {/* Inputs de Arquivo escondidos */}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -266,26 +308,70 @@ const ThemesPage = () => {
                 capture="environment"
                 className="hidden"
               />
+              <input
+                type="file"
+                ref={coverInputRef}
+                onChange={handleCoverFileChange}
+                accept="image/*"
+                className="hidden"
+              />
 
-              <Button
-                type="button"
-                onClick={handleScanButtonClick}
-                disabled={isScanning}
-                variant="outline"
-                className="w-full h-11 border-dashed border-primary/45 hover:border-primary bg-primary/5 hover:bg-primary/10 rounded-xl flex items-center justify-center gap-2 text-primary text-sm font-bold transition-all"
-              >
-                {isScanning ? (
-                  <>
-                    <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    Analisando carta...
-                  </>
-                ) : (
-                  <>
-                    <Camera className="h-4.5 w-4.5" />
-                    Escanear Tema por Foto
-                  </>
-                )}
-              </Button>
+              {/* Prévia da Capa Carregada */}
+              {imagePreviewUrl && (
+                <div className="flex justify-center mb-1">
+                  <div className="relative w-24 h-34 rounded-xl overflow-hidden border border-primary/40 shadow-lg group">
+                    <img 
+                      src={imagePreviewUrl} 
+                      className="w-full h-full object-cover" 
+                      alt="Capa do Tema" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedImageFile(null);
+                        setImagePreviewUrl('');
+                      }}
+                      className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[10px] font-bold text-red-400 gap-1"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remover Capa
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Botões de Câmera (Gemini) e Upload Manual (Galeria) */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  onClick={handleScanButtonClick}
+                  disabled={isScanning}
+                  variant="outline"
+                  className="h-11 border-dashed border-primary/45 hover:border-primary bg-primary/5 hover:bg-primary/10 rounded-xl flex items-center justify-center gap-2 text-primary text-xs font-bold transition-all"
+                >
+                  {isScanning ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      Lendo...
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="h-4 w-4" />
+                      Escanear (IA)
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleCoverSelectButtonClick}
+                  variant="outline"
+                  className="h-11 border-dashed border-primary/45 hover:border-primary bg-primary/5 hover:bg-primary/10 rounded-xl flex items-center justify-center gap-2 text-primary text-xs font-bold transition-all"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  Foto de Capa
+                </Button>
+              </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nome do Tema</label>
