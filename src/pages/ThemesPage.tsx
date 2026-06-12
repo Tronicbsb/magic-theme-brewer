@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ThemeCard } from '@/components/ThemeCard';
 import { ManaIcon } from '@/components/ManaIcon';
-import { Plus, Filter, Sparkles, BarChart2, Camera, Image as ImageIcon } from 'lucide-react';
+import { Plus, Filter, Sparkles, BarChart2, Camera, Image as ImageIcon, X, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { scanThemeCard } from '@/integrations/firebase/gemini';
 import { checkAndIncrementUsage, decrementUsage } from '@/integrations/firebase/limits';
@@ -22,22 +22,32 @@ const ThemesPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTheme, setEditingTheme] = useState<DeckTheme | null>(null);
   const [filterColor, setFilterColor] = useState<ManaColor | 'all'>('all');
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const scanCameraRef = useRef<HTMLInputElement>(null);
+  const scanGalleryRef = useRef<HTMLInputElement>(null);
+  const coverCameraRef = useRef<HTMLInputElement>(null);
+  const coverGalleryRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string>('');
 
-  const handleScanButtonClick = () => {
-    fileInputRef.current?.click();
+  const handleScanCameraClick = () => {
+    scanCameraRef.current?.click();
   };
 
-  const handleCoverSelectButtonClick = () => {
-    coverInputRef.current?.click();
+  const handleScanGalleryClick = () => {
+    scanGalleryRef.current?.click();
   };
 
-  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverCameraClick = () => {
+    coverCameraRef.current?.click();
+  };
+
+  const handleCoverGalleryClick = () => {
+    coverGalleryRef.current?.click();
+  };
+
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>, source: 'camera' | 'gallery') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -45,27 +55,41 @@ const ThemesPage = () => {
     try {
       const compressedBlob = await compressImage(file);
       const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
+      const newPreviewUrl = URL.createObjectURL(compressedBlob);
+      // Revoke previous preview URL to avoid memory leaks
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
       setSelectedImageFile(compressedFile);
-      setImagePreviewUrl(URL.createObjectURL(compressedBlob));
+      setImagePreviewUrl(newPreviewUrl);
       toast.success('Imagem de capa selecionada!', { id: toastId });
     } catch (err) {
-      toast.error('Erro ao processar imagem.', { id: toastId });
+      console.error('Cover image error:', err);
+      toast.error('Erro ao processar imagem. Tente novamente.', { id: toastId });
     } finally {
-      if (coverInputRef.current) coverInputRef.current.value = '';
+      if (source === 'camera' && coverCameraRef.current) coverCameraRef.current.value = '';
+      if (source === 'gallery' && coverGalleryRef.current) coverGalleryRef.current.value = '';
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleScanFileChange = (e: React.ChangeEvent<HTMLInputElement>, source: 'camera' | 'gallery') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!user) {
       toast.error('Você precisa estar autenticado para usar o leitor.');
+      // Limpar input
+      if (source === 'camera' && scanCameraRef.current) scanCameraRef.current.value = '';
+      if (source === 'gallery' && scanGalleryRef.current) scanGalleryRef.current.value = '';
       return;
     }
 
     setIsScanning(true);
     const scanToastId = toast.loading('Verificando limites diários...');
+
+    // Função para limpar os inputs do scanner
+    const clearScanInputs = () => {
+      if (scanCameraRef.current) scanCameraRef.current.value = '';
+      if (scanGalleryRef.current) scanGalleryRef.current.value = '';
+    };
 
     checkAndIncrementUsage(user.uid)
       .then(async () => {
@@ -74,8 +98,11 @@ const ThemesPage = () => {
           const compressedBlob = await compressImage(file);
           const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
 
+          // Guardamos a imagem para depois (será usada como capa no salvamento)
+          if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+          const newPreviewUrl = URL.createObjectURL(compressedBlob);
           setSelectedImageFile(compressedFile);
-          setImagePreviewUrl(URL.createObjectURL(compressedBlob));
+          setImagePreviewUrl(newPreviewUrl);
 
           const base64Reader = new FileReader();
           base64Reader.onloadend = async () => {
@@ -87,35 +114,53 @@ const ThemesPage = () => {
               setFormData((prev) => ({
                 ...prev,
                 name: result.themeName,
-                manaColor: result.manaColor,
+                ...(result.manaColor ? { manaColor: result.manaColor } : {}),
               }));
-              toast.success(`Tema escaneado com sucesso: ${result.themeName}!`, { id: scanToastId });
+
+              if (result.manaDetected) {
+                toast.success(`Tema escaneado com sucesso: ${result.themeName}!`, { id: scanToastId });
+              } else {
+                toast.success(`Nome identificado: "${result.themeName}". Selecione a cor de mana manualmente.`, {
+                  id: scanToastId,
+                  duration: 5000,
+                });
+              }
             } catch (err: any) {
+              console.error('Scan error:', err);
               const errorMessage = err.message || '';
               const isLimitError = errorMessage.includes('limite') || errorMessage.includes('limitação');
               if (!isLimitError) {
                 await decrementUsage(user.uid);
               }
-              toast.error(errorMessage || 'Erro ao analisar imagem.', { id: scanToastId });
+              // Em caso de erro no scan, mantemos a imagem como capa mas não preenchemos nome/cor
+              toast.error(errorMessage || 'Erro ao analisar imagem. A imagem foi mantida como capa.', { id: scanToastId });
             } finally {
               setIsScanning(false);
-              if (fileInputRef.current) fileInputRef.current.value = '';
+              clearScanInputs();
             }
+          };
+          base64Reader.onerror = () => {
+            toast.error('Erro ao ler arquivo de imagem.', { id: scanToastId });
+            setIsScanning(false);
+            clearScanInputs();
           };
           base64Reader.readAsDataURL(compressedBlob);
         } catch (err) {
+          console.error('Compress error:', err);
           await decrementUsage(user.uid);
-          toast.error('Erro ao comprimir imagem da câmera.', { id: scanToastId });
+          toast.error('Erro ao comprimir imagem. Tente novamente.', { id: scanToastId });
           setIsScanning(false);
+          clearScanInputs();
         }
       })
       .catch((err) => {
+        console.error('Limit check error:', err);
         toast.error(err.message || 'Limite diário atingido.', { id: scanToastId });
         setIsScanning(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        clearScanInputs();
       });
   };
-  
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -137,6 +182,7 @@ const ThemesPage = () => {
       manaColor: 'white',
     });
     setEditingTheme(null);
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
     setSelectedImageFile(null);
     setImagePreviewUrl('');
   };
@@ -164,7 +210,7 @@ const ThemesPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
       toast.error('Nome do tema é obrigatório');
       return;
@@ -196,13 +242,13 @@ const ThemesPage = () => {
     }
   };
 
-  const filteredThemes = themes.filter(theme => 
+  const filteredThemes = themes.filter(theme =>
     filterColor === 'all' || theme.manaColor === filterColor
   );
   return (
     <div className="min-h-screen bg-[#0d0e12] text-foreground p-6 pb-24 relative">
       <div className="max-w-5xl mx-auto space-y-6">
-        
+
         {/* Cabeçalho */}
         <div className="flex justify-between items-center py-4">
           <div className="text-left">
@@ -213,8 +259,8 @@ const ThemesPage = () => {
               Cadastre os temas dos semi decks que você possui fisicamente
             </p>
           </div>
-          <Button 
-            onClick={() => openDialog()} 
+          <Button
+            onClick={() => openDialog()}
             className="hidden sm:flex items-center gap-2 h-10 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold rounded-xl"
           >
             <Plus className="h-4 w-4" />
@@ -266,8 +312,8 @@ const ThemesPage = () => {
               </div>
               <p className="text-slate-400 text-sm font-semibold">Nenhum tema encontrado</p>
               <p className="text-slate-500 text-xs mt-1">
-                {filterColor === 'all' 
-                  ? 'Você ainda não possui temas cadastrados nesta conta.' 
+                {filterColor === 'all'
+                  ? 'Você ainda não possui temas cadastrados nesta conta.'
                   : 'Nenhum tema cadastrado para esta cor de mana.'
                 }
               </p>
@@ -296,22 +342,37 @@ const ThemesPage = () => {
                 {editingTheme ? 'Editar Tema' : 'Novo Tema'}
               </DialogTitle>
             </DialogHeader>
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Input de câmera oculto para dispositivos móveis */}
-              {/* Inputs de Arquivo escondidos */}
+              {/* Inputs ocultos para Scanner IA */}
               <input
                 type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
+                ref={scanCameraRef}
+                onChange={(e) => handleScanFileChange(e, 'camera')}
                 accept="image/*"
                 capture="environment"
                 className="hidden"
               />
               <input
                 type="file"
-                ref={coverInputRef}
-                onChange={handleCoverFileChange}
+                ref={scanGalleryRef}
+                onChange={(e) => handleScanFileChange(e, 'gallery')}
+                accept="image/*"
+                className="hidden"
+              />
+              {/* Inputs ocultos para Foto de Capa */}
+              <input
+                type="file"
+                ref={coverCameraRef}
+                onChange={(e) => handleCoverFileChange(e, 'camera')}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={coverGalleryRef}
+                onChange={(e) => handleCoverFileChange(e, 'gallery')}
                 accept="image/*"
                 className="hidden"
               />
@@ -320,57 +381,83 @@ const ThemesPage = () => {
               {imagePreviewUrl && (
                 <div className="flex justify-center mb-1">
                   <div className="relative w-24 h-34 rounded-xl overflow-hidden border border-primary/40 shadow-lg group">
-                    <img 
-                      src={imagePreviewUrl} 
-                      className="w-full h-full object-cover" 
-                      alt="Capa do Tema" 
+                    <img
+                      src={imagePreviewUrl}
+                      className="w-full h-full object-cover"
+                      alt="Capa do Tema"
                     />
                     <button
                       type="button"
                       onClick={() => {
+                        if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
                         setSelectedImageFile(null);
                         setImagePreviewUrl('');
                       }}
                       className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[10px] font-bold text-red-400 gap-1"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                       Remover Capa
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Botões de Câmera (Gemini) e Upload Manual (Galeria) */}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  onClick={handleScanButtonClick}
-                  disabled={isScanning}
-                  variant="outline"
-                  className="h-11 border-dashed border-primary/45 hover:border-primary bg-primary/5 hover:bg-primary/10 rounded-xl flex items-center justify-center gap-2 text-primary text-xs font-bold transition-all"
-                >
-                  {isScanning ? (
-                    <>
-                      <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      Lendo...
-                    </>
-                  ) : (
-                    <>
-                      <Camera className="h-4 w-4" />
-                      Escanear (IA)
-                    </>
-                  )}
-                </Button>
+              {/* Botões de Scanner IA e Foto de Capa */}
+              <div className="space-y-2">
+                {/* Linha 1: Scanner IA */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    onClick={handleScanCameraClick}
+                    disabled={isScanning}
+                    variant="outline"
+                    className="h-11 border-dashed border-primary/45 hover:border-primary bg-primary/5 hover:bg-primary/10 rounded-xl flex items-center justify-center gap-2 text-primary text-xs font-bold transition-all"
+                  >
+                    {isScanning ? (
+                      <>
+                        <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        Lendo...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-4 w-4" />
+                        Escanear (IA)
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleScanGalleryClick}
+                    disabled={isScanning}
+                    variant="outline"
+                    className="h-11 border-dashed border-slate-600 hover:border-slate-400 bg-slate-800/30 hover:bg-slate-800/50 rounded-xl flex items-center justify-center gap-2 text-slate-400 text-xs font-bold transition-all"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    Escanear Galeria
+                  </Button>
+                </div>
 
-                <Button
-                  type="button"
-                  onClick={handleCoverSelectButtonClick}
-                  variant="outline"
-                  className="h-11 border-dashed border-primary/45 hover:border-primary bg-primary/5 hover:bg-primary/10 rounded-xl flex items-center justify-center gap-2 text-primary text-xs font-bold transition-all"
-                >
-                  <ImageIcon className="h-4 w-4" />
-                  Foto de Capa
-                </Button>
+                {/* Linha 2: Foto de Capa */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    onClick={handleCoverCameraClick}
+                    variant="outline"
+                    className="h-11 border-dashed border-emerald-500/40 hover:border-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-xl flex items-center justify-center gap-2 text-emerald-400 text-xs font-bold transition-all"
+                  >
+                    <Camera className="h-4 w-4" />
+                    Capa (Câmera)
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleCoverGalleryClick}
+                    variant="outline"
+                    className="h-11 border-dashed border-emerald-500/40 hover:border-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-xl flex items-center justify-center gap-2 text-emerald-400 text-xs font-bold transition-all"
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                    Capa (Galeria)
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -399,7 +486,7 @@ const ThemesPage = () => {
                 <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Alinhamento de Mana</label>
                 <Select
                   value={formData.manaColor}
-                  onValueChange={(value: ManaColor) => 
+                  onValueChange={(value: ManaColor) =>
                     setFormData({ ...formData, manaColor: value })
                   }
                 >
@@ -420,15 +507,15 @@ const ThemesPage = () => {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={closeDialog}
                   className="flex-1 h-11 border-[#282d3d] hover:bg-[#0d0e12] rounded-xl font-semibold text-slate-400"
                 >
                   Cancelar
                 </Button>
-                <Button 
+                <Button
                   type="submit"
                   className="flex-1 h-11 bg-primary text-primary-foreground font-semibold rounded-xl"
                 >

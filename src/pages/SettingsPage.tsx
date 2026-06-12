@@ -1,13 +1,44 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDeckThemes } from '@/hooks/useDeckThemes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Mail, User, ShieldAlert, Sparkles, HelpCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { LogOut, Mail, User, ShieldAlert, Sparkles, HelpCircle, Key, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { themes } = useDeckThemes();
+  const [apiKey, setApiKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [hasSavedKey, setHasSavedKey] = useState(false);
+
+  useEffect(() => {
+    const savedKey = localStorage.getItem('custom_gemini_api_key') || '';
+    setApiKey(savedKey);
+    setHasSavedKey(!!savedKey);
+  }, []);
+
+  const handleSaveKey = () => {
+    const trimmed = apiKey.trim();
+    if (!trimmed) {
+      toast.error('A chave não pode estar vazia.');
+      return;
+    }
+    localStorage.setItem('custom_gemini_api_key', trimmed);
+    setHasSavedKey(true);
+    toast.success('Chave de API do Gemini salva com sucesso!');
+  };
+
+  const handleClearKey = () => {
+    localStorage.removeItem('custom_gemini_api_key');
+    setApiKey('');
+    setHasSavedKey(false);
+    toast.success('Chave de API do Gemini removida.');
+  };
 
   if (!user) return null;
 
@@ -73,6 +104,69 @@ export default function SettingsPage() {
               <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-semibold">
                 Sincronizado
               </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card de Configurações da IA (Gemini) */}
+        <Card className="bg-[#16181f]/80 border-[#282d3d] backdrop-blur-md shadow-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-md font-bold text-slate-200 flex items-center gap-2">
+              <Key className="h-4 w-4 text-purple-400" />
+              Configuração do Gemini AI
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-400">
+              Insira sua chave de API para habilitar o escaneamento de cartas via IA. Ela fica salva de forma segura apenas localmente em seu dispositivo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="gemini-key" className="text-xs text-slate-300 font-medium">Chave de API (Google AI Studio)</Label>
+              <div className="relative">
+                <Input
+                  id="gemini-key"
+                  type={showKey ? 'text' : 'password'}
+                  placeholder="AIzaSy..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="bg-[#0d0e12] border-[#282d3d] text-slate-100 placeholder:text-slate-600 focus-visible:ring-purple-500 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey(!showKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-normal">
+                Você pode obter uma chave gratuita acessando o{' '}
+                <a 
+                  href="https://aistudio.google.com/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-purple-400 hover:underline inline-flex items-center gap-0.5"
+                >
+                  Google AI Studio
+                </a>.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                onClick={handleSaveKey}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs h-9"
+              >
+                Salvar Chave
+              </Button>
+              {hasSavedKey && (
+                <Button
+                  onClick={handleClearKey}
+                  variant="outline"
+                  className="border-[#282d3d] text-slate-400 hover:bg-slate-900 hover:text-slate-200 text-xs h-9 px-3"
+                >
+                  Remover
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

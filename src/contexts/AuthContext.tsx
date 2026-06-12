@@ -1,5 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import {
+  User,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut,
+  browserLocalPersistence,
+  setPersistence,
+} from 'firebase/auth';
 import { auth, googleProvider } from '@/integrations/firebase/client';
 
 interface AuthContextType {
@@ -16,6 +25,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Garante persistência local (importante para TWA/WebView)
+    setPersistence(auth, browserLocalPersistence).catch(console.error);
+
+    // Captura o resultado do redirect (caso o usuário esteja retornando do Google)
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          setUser(result.user);
+        }
+      })
+      .catch((error) => {
+        console.error("Redirect sign-in resolution failed:", error);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -24,11 +47,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const loginWithGoogle = async () => {
+    // Tenta popup primeiro; se for bloqueado pelo WebView, faz redirect
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
+    } catch (popupError: any) {
+      const code = popupError?.code || '';
+      // Códigos que indicam popup bloqueado ou indisponível
+      if (
+        code === 'auth/popup-blocked' ||
+        code === 'auth/popup-closed-by-user' ||
+        code === 'auth/cancelled-popup-request' ||
+        code === 'auth/operation-not-supported-in-this-environment'
+      ) {
+        console.warn('Popup bloqueado, tentando redirect...', code);
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        console.error("Login failed:", popupError);
+        throw popupError;
+      }
     }
   };
 

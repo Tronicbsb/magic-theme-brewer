@@ -6,6 +6,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: "/magic-theme-brewer/",
   server: {
     host: "::",
     port: 8080,
@@ -17,6 +18,9 @@ export default defineConfig(({ mode }) => ({
       injectRegister: "inline",
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,json}"],
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
       },
       manifest: {
         name: "Magic JumpStart Dex",
@@ -26,8 +30,8 @@ export default defineConfig(({ mode }) => ({
         background_color: "#0d0e12",
         display: "standalone",
         orientation: "portrait",
-        start_url: "/",
-        scope: "/",
+        start_url: "/magic-theme-brewer/",
+        scope: "/magic-theme-brewer/",
         icons: [
           {
             src: "pwa-192.png",
